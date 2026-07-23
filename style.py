@@ -1,111 +1,41 @@
-# ==============================
-# app.py (1/5)
-# ==============================
+# ==========================================
+# myapp.py (1/5)
+# AI 없이 동작하는 스타일 추천기
+# ==========================================
 
 import streamlit as st
-import requests
 import random
-import json
-import base64
-from openai import OpenAI
-
-# ------------------------
-# PAGE
-# ------------------------
+import os
 
 st.set_page_config(
-    page_title="AI 스타일 추천기",
+    page_title="스타일 추천기",
     page_icon="👕",
     layout="wide"
 )
 
-# ------------------------
-# OPENAI
-# ------------------------
-
-client = OpenAI(
-    api_key=st.secrets["OPENAI_API_KEY"]
-)
-
-# ------------------------
-# WEATHER
-# ------------------------
-
-OPENWEATHER_KEY = st.secrets["OPENWEATHER_API_KEY"]
-
-def get_weather(city):
-
-    url = (
-        f"https://api.openweathermap.org/data/2.5/weather?"
-        f"q={city}&appid={OPENWEATHER_KEY}&units=metric&lang=kr"
-    )
-
-    try:
-
-        data = requests.get(url, timeout=10).json()
-
-        return {
-            "weather": data["weather"][0]["description"],
-            "temp": round(data["main"]["temp"])
-        }
-
-    except:
-
-        return {
-            "weather":"맑음",
-            "temp":23
-        }
-
-# ------------------------
-# STYLE
-# ------------------------
+# -------------------------
+# CSS
+# -------------------------
 
 st.markdown("""
-
 <style>
-
-@font-face{
-font-family:Nanum;
-src:url("youtube/NanumGothic.ttf");
-}
-
-html,body,[class*="css"]{
-
-font-family:Nanum;
-
-}
 
 .stApp{
 
-background:
-linear-gradient(
+background:linear-gradient(
 135deg,
-#fffaf7,
-#eef3ff,
-#ffffff
+#FFF6F3,
+#EEF5FF,
+#FFFFFF
 );
-
-}
-
-.box{
-
-background:white;
-
-padding:25px;
-
-border-radius:20px;
-
-box-shadow:0 15px 30px rgba(0,0,0,.08);
-
-margin-bottom:20px;
 
 }
 
 .title{
 
-font-size:42px;
+font-size:45px;
 
-font-weight:800;
+font-weight:900;
 
 text-align:center;
 
@@ -113,646 +43,713 @@ margin-bottom:20px;
 
 }
 
-.subtitle{
+.card{
 
-font-size:18px;
+background:white;
 
-color:#666;
+padding:20px;
+
+border-radius:20px;
+
+box-shadow:0px 10px 25px rgba(0,0,0,.08);
 
 }
 
 </style>
-
 """,unsafe_allow_html=True)
 
-# ------------------------
-# SESSION
-# ------------------------
-
-if "style_data" not in st.session_state:
-
-    st.session_state.style_data={}
-
-if "images" not in st.session_state:
-
-    st.session_state.images={}
-
-if "seed" not in st.session_state:
-
-    st.session_state.seed=random.randint(1,999999)
-
-# ------------------------
-# MBTI
-# ------------------------
+# -------------------------
+# DATA
+# -------------------------
 
 MBTI=[
+
 "INTJ","INTP","ENTJ","ENTP",
+
 "INFJ","INFP","ENFJ","ENFP",
+
 "ISTJ","ISFJ","ESTJ","ESFJ",
+
 "ISTP","ISFP","ESTP","ESFP"
+
 ]
 
-# ------------------------
+ANIMALS={
+
+"고양이":"미니멀",
+
+"강아지":"캐주얼",
+
+"토끼":"러블리",
+
+"여우":"시크",
+
+"곰":"오버핏",
+
+"늑대":"다크",
+
+"햄스터":"아기자기"
+
+}
+
+MOODS=[
+
+"😊 기쁨",
+
+"😢 슬픔",
+
+"😡 화남",
+
+"😴 무기력"
+
+]
+
+# -------------------------
+# SESSION
+# -------------------------
+
+if "result" not in st.session_state:
+
+    st.session_state.result={}
+
+# -------------------------
 # TITLE
-# ------------------------
+# -------------------------
 
 st.markdown(
-"<div class='title'>👕 AI 스타일 추천기</div>",
+'<div class="title">👕 스타일 추천기</div>',
 unsafe_allow_html=True
 )
-
-# ------------------------
-# LAYOUT
-# ------------------------
 
 left,right=st.columns([1,1.5])
 
 with left:
-
-    st.markdown("## 사용자 정보")
 
     mbti=st.selectbox(
         "MBTI",
         MBTI
     )
 
-    animal=st.text_input(
+    animal=st.selectbox(
         "좋아하는 동물",
-        placeholder="예) 고양이"
+        list(ANIMALS.keys())
     )
 
-    city=st.text_input(
-        "도시",
-        value="Seoul"
+    temp=st.slider(
+        "현재 온도",
+        -10,
+        40,
+        22
     )
 
-    weather=get_weather(city)
+    weather=st.selectbox(
+        "날씨",
+        [
 
-    st.info(
-        f"""
-현재 날씨
+        "맑음",
 
-☁️ {weather["weather"]}
+        "흐림",
 
-🌡️ {weather["temp"]}℃
-"""
-    )
+        "비",
 
-    generate=st.button(
-        "✨ 스타일 생성",
-        use_container_width=True
-    )
-
-    regenerate=st.button(
-        "🔄 다시 생성",
-        use_container_width=True
-    )
-
-# ------------------------
-# MOODS
-# ------------------------
-
-MOODS={
-
-"😊 기쁨":{
-
-"name":"기쁨",
-
-"background":"warm sunset, flowers, dreamy park, golden light"
-
-},
-
-"😢 슬픔":{
-
-"name":"슬픔",
-
-"background":"rainy window, blue tone, emotional street"
-
-},
-
-"😡 화남":{
-
-"name":"화남",
-
-"background":"red neon city, cyberpunk lights"
-
-},
-
-"😴 무기력":{
-
-"name":"무기력",
-
-"background":"foggy cafe, gray mood, cozy"
-
-}
-
-}
-
-tabs=st.tabs(list(MOODS.keys()))
-
-result_boxes=[]
-
-for tab in tabs:
-
-    with tab:
-
-        img=st.empty()
-
-        txt=st.empty()
-
-        result_boxes.append((img,txt))# ==============================
-# app.py (2/5)
-# ==============================
-
-def make_prompt(
-    mbti,
-    animal,
-    weather,
-    temp,
-    mood,
-    background,
-    seed
-):
-
-    return f"""
-당신은 세계 최고의 패션 스타일리스트입니다.
-
-사용자 정보
-
-MBTI : {mbti}
-
-좋아하는 동물 : {animal}
-
-현재 날씨 : {weather}
-
-현재 기온 : {temp}도
-
-현재 감정 : {mood}
-
-아래 형식의 JSON만 출력하세요.
-
-{{
-"title":"",
-"top":"",
-"bottom":"",
-"shoes":"",
-"accessory":"",
-"description":"",
-"origin":"",
-"trend_period":"",
-"trend_reason":"",
-"image_prompt":""
-}}
-
-조건
-
-- 한국인이 좋아할 감성
-
-- 계절을 반드시 고려
-
-- 기온을 반드시 고려
-
-- 동물의 분위기를 은은하게 반영
-
-- MBTI를 반영
-
-- 이전 결과와 완전히 다른 스타일
-
-- 랜덤값 {seed}
-
-이미지 프롬프트는 영어로 작성
-
-배경은
-
-{background}
-
-포즈는 전신
-
-고품질
-
-패션 일러스트
-
-editorial
-
-clean background
-"""
-
-
-# ---------------------------------------
-# GPT
-# ---------------------------------------
-
-def generate_style(
-
-    mbti,
-
-    animal,
-
-    weather,
-
-    temp,
-
-    mood,
-
-    background,
-
-    seed
-
-):
-
-    prompt=make_prompt(
-
-        mbti,
-
-        animal,
-
-        weather,
-
-        temp,
-
-        mood,
-
-        background,
-
-        seed
-
-    )
-
-    response=client.chat.completions.create(
-
-        model="gpt-4.1",
-
-        temperature=1.25,
-
-        response_format={
-
-            "type":"json_object"
-
-        },
-
-        messages=[
-
-            {
-
-                "role":"system",
-
-                "content":"당신은 최고의 패션 디렉터입니다."
-
-            },
-
-            {
-
-                "role":"user",
-
-                "content":prompt
-
-            }
+        "눈"
 
         ]
 
     )
 
-    text=response.choices[0].message.content
-
-    return json.loads(text)
-
-
-# ---------------------------------------
-# IMAGE
-# ---------------------------------------
-
-def generate_image(prompt):
-
-    result=client.images.generate(
-
-        model="gpt-image-1",
-
-        prompt=prompt,
-
-        size="1024x1024"
-
+    mood=st.selectbox(
+        "기분",
+        MOODS
     )
 
-    image_bytes=base64.b64decode(
-
-        result.data[0].b64_json
-
+    create=st.button(
+        "✨ 스타일 추천",
+        use_container_width=True
     )
 
-    return image_bytes
-# ==============================
-# app.py (3/5)
-# ==============================
+    again=st.button(
+        "🔄 다시 생성",
+        use_container_width=True
+    )# ==========================================
+# myapp.py (2/5)
+# ==========================================
 
-# ---------------------------------------
-# GENERATE
-# ---------------------------------------
+STYLE_INFO={
 
-if generate:
+"미니멀":{
 
-    st.session_state.seed = random.randint(1, 999999)
+"title":[
+"모던 미니멀 룩",
+"감성 데일리 룩",
+"뉴트럴 클래식"
+],
 
-    with st.spinner("AI가 스타일을 만들고 있습니다..."):
+"top":[
+"화이트 셔츠",
+"베이지 니트",
+"오버핏 맨투맨"
+],
 
-        for i, (tab_name, info) in enumerate(MOODS.items()):
+"bottom":[
+"슬랙스",
+"와이드 팬츠",
+"청바지"
+],
 
-            mood = info["name"]
-            background = info["background"]
+"shoes":[
+"화이트 스니커즈",
+"로퍼",
+"독일군 스니커즈"
+],
 
-            data = generate_style(
-                mbti=mbti,
-                animal=animal,
-                weather=weather["weather"],
-                temp=weather["temp"],
-                mood=mood,
-                background=background,
-                seed=st.session_state.seed + i
+"acc":[
+"실버 목걸이",
+"가죽 시계",
+"캔버스백"
+]
+
+},
+
+"캐주얼":{
+
+"title":[
+"캠퍼스 룩",
+"캐주얼 데일리",
+"주말 산책 룩"
+],
+
+"top":[
+"후드티",
+"맨투맨",
+"반팔 티셔츠"
+],
+
+"bottom":[
+"조거팬츠",
+"청바지",
+"카고팬츠"
+],
+
+"shoes":[
+"컨버스",
+"뉴발란스",
+"러닝화"
+],
+
+"acc":[
+"볼캡",
+"백팩",
+"에코백"
+]
+
+},
+
+"러블리":{
+
+"title":[
+"러블리 코디",
+"소프트 데이트룩",
+"파스텔 감성"
+],
+
+"top":[
+"가디건",
+"니트",
+"블라우스"
+],
+
+"bottom":[
+"플리츠 스커트",
+"와이드 팬츠",
+"청치마"
+],
+
+"shoes":[
+"메리제인",
+"플랫슈즈",
+"스니커즈"
+],
+
+"acc":[
+"리본",
+"진주 목걸이",
+"미니백"
+]
+
+},
+
+"시크":{
+
+"title":[
+"시크 모노톤",
+"도시 감성",
+"블랙 스타일"
+],
+
+"top":[
+"블랙 셔츠",
+"터틀넥",
+"자켓"
+],
+
+"bottom":[
+"블랙 슬랙스",
+"코팅진",
+"와이드 팬츠"
+],
+
+"shoes":[
+"첼시부츠",
+"더비슈즈",
+"스니커즈"
+],
+
+"acc":[
+"선글라스",
+"실버링",
+"가죽백"
+]
+
+},
+
+"오버핏":{
+
+"title":[
+"힙한 오버핏",
+"편안한 스트릿",
+"꾸안꾸"
+],
+
+"top":[
+"오버핏 후드",
+"루즈핏 니트",
+"오버핏 셔츠"
+],
+
+"bottom":[
+"와이드 팬츠",
+"카고팬츠",
+"조거팬츠"
+],
+
+"shoes":[
+"농구화",
+"운동화",
+"어글리슈즈"
+],
+
+"acc":[
+"비니",
+"크로스백",
+"볼캡"
+]
+
+},
+
+"다크":{
+
+"title":[
+"다크 스트릿",
+"올블랙 룩",
+"모던 시크"
+],
+
+"top":[
+"블랙 후드",
+"레더 자켓",
+"검정 셔츠"
+],
+
+"bottom":[
+"블랙진",
+"슬랙스",
+"카고팬츠"
+],
+
+"shoes":[
+"워커",
+"부츠",
+"검정 스니커즈"
+],
+
+"acc":[
+"체인목걸이",
+"반지",
+"가죽팔찌"
+]
+
+},
+
+"아기자기":{
+
+"title":[
+"큐트룩",
+"소프트 캐주얼",
+"포근한 스타일"
+],
+
+"top":[
+"파스텔 니트",
+"후드집업",
+"맨투맨"
+],
+
+"bottom":[
+"청바지",
+"와이드팬츠",
+"반바지"
+],
+
+"shoes":[
+"운동화",
+"캔버스화",
+"스니커즈"
+],
+
+"acc":[
+"키링",
+"에코백",
+"볼캡"
+]
+
+}
+
+}
+
+SEASON={
+
+"summer":[
+"린넨 소재를 사용해 시원한 느낌을 살렸습니다.",
+"가볍고 통풍이 좋은 코디입니다."
+],
+
+"spring":[
+"부드러운 색감으로 봄 분위기를 표현했습니다.",
+"산뜻한 느낌을 주는 코디입니다."
+],
+
+"fall":[
+"따뜻한 브라운 계열을 사용했습니다.",
+"가을 감성에 잘 어울리는 스타일입니다."
+],
+
+"winter":[
+"보온성을 고려한 코디입니다.",
+"포근한 겨울 느낌을 살렸습니다."
+]
+
+}# ==========================================
+# myapp.py (3/5)
+# ==========================================
+
+def get_season(temp):
+
+    if temp >= 28:
+        return "summer"
+
+    elif temp >= 18:
+        return "spring"
+
+    elif temp >= 8:
+        return "fall"
+
+    else:
+        return "winter"
+
+
+def make_style():
+
+    style = ANIMALS[animal]
+
+    info = STYLE_INFO[style]
+
+    season = get_season(temp)
+
+    if mood == "😊 기쁨":
+        color = "밝은 파스텔 계열"
+    elif mood == "😢 슬픔":
+        color = "블루 & 그레이 계열"
+    elif mood == "😡 화남":
+        color = "블랙 & 레드 계열"
+    else:
+        color = "베이지 & 크림 계열"
+
+    if weather == "비":
+        item = "우산"
+    elif weather == "눈":
+        item = "머플러"
+    elif weather == "흐림":
+        item = "가디건"
+    else:
+        item = "선글라스"
+
+    result = {
+
+        "title": random.choice(info["title"]),
+
+        "top": random.choice(info["top"]),
+
+        "bottom": random.choice(info["bottom"]),
+
+        "shoes": random.choice(info["shoes"]),
+
+        "acc": random.choice(info["acc"]),
+
+        "weather_item": item,
+
+        "color": color,
+
+        "season_desc": random.choice(SEASON[season]),
+
+        "origin": random.choice([
+
+            "1990년대 스트릿 패션에서 영향을 받은 스타일입니다.",
+
+            "한국의 미니멀 패션과 북유럽 감성을 결합한 스타일입니다.",
+
+            "일본 캐주얼 패션과 한국 데일리룩을 조합한 스타일입니다.",
+
+            "SNS 감성 패션에서 많은 사랑을 받은 스타일입니다."
+
+        ]),
+
+        "trend": random.choice([
+
+            "2019~2021",
+
+            "2020~2022",
+
+            "2022~2024",
+
+            "2023~현재"
+
+        ]),
+
+        "reason": random.choice([
+
+            "편안하면서도 세련된 분위기를 연출할 수 있어서",
+
+            "SNS와 숏폼 콘텐츠에서 자주 소개되어서",
+
+            "실용성과 디자인을 모두 만족했기 때문에",
+
+            "누구나 쉽게 따라 입을 수 있는 스타일이었기 때문입니다."
+
+        ])
+
+    }
+
+    return result
+
+
+if create or again:
+
+    st.session_state.result = make_style()# ==========================================
+# myapp.py (4/5)
+# ==========================================
+
+with right:
+
+    if st.session_state.result:
+
+        data = st.session_state.result
+
+        st.markdown("## 👕 추천 코디")
+
+        # -------------------------
+        # 이미지 표시
+        # -------------------------
+
+        style_name = ANIMALS[animal].lower()
+
+        image_folder = f"images/{style_name}"
+
+        image_list = []
+
+        if os.path.exists(image_folder):
+
+            for file in os.listdir(image_folder):
+
+                if file.endswith(".png") or file.endswith(".jpg"):
+
+                    image_list.append(
+                        os.path.join(image_folder,file)
+                    )
+
+        if len(image_list)>0:
+
+            st.image(
+                random.choice(image_list),
+                use_container_width=True
             )
-
-            image = generate_image(
-                data["image_prompt"]
-            )
-
-            st.session_state.style_data[mood] = data
-            st.session_state.images[mood] = image
-
-# ---------------------------------------
-# REGENERATE
-# ---------------------------------------
-
-if regenerate:
-
-    st.session_state.seed = random.randint(1, 999999)
-
-    st.rerun()
-
-# ---------------------------------------
-# SHOW
-# ---------------------------------------
-
-for idx, (tab_name, info) in enumerate(MOODS.items()):
-
-    mood = info["name"]
-
-    with tabs[idx]:
-
-        if mood in st.session_state.style_data:
-
-            data = st.session_state.style_data[mood]
-
-            col1, col2 = st.columns([1.2, 1])
-
-            with col1:
-
-                st.image(
-                    st.session_state.images[mood],
-                    use_container_width=True
-                )
-
-            with col2:
-
-                st.markdown(f"## 👗 {data['title']}")
-
-                st.markdown("---")
-
-                st.markdown(f"### 👕 상의")
-                st.write(data["top"])
-
-                st.markdown(f"### 👖 하의")
-                st.write(data["bottom"])
-
-                st.markdown(f"### 👟 신발")
-                st.write(data["shoes"])
-
-                st.markdown(f"### 👜 액세서리")
-                st.write(data["accessory"])
-
-                st.markdown("---")
-
-                st.markdown("### ✨ 코디 설명")
-                st.write(data["description"])
-
-                st.markdown("### 📚 스타일 유래")
-                st.write(data["origin"])
-
-                st.markdown("### 📅 유행 시기")
-                st.write(data["trend_period"])
-
-                st.markdown("### 🔥 유행한 이유")
-                st.write(data["trend_reason"])
 
         else:
 
-            st.info("왼쪽에서 '✨ 스타일 생성' 버튼을 눌러주세요.")
-# ==============================
-# app.py (4/5)
-# ==============================
+            st.info("이미지 폴더를 추가하면 코디 이미지가 표시됩니다.")
 
-# ---------------------------------------
-# IMAGE PROMPT ENHANCER
-# ---------------------------------------
+        st.markdown("---")
 
-STYLE_SUFFIX = """
-full body fashion illustration,
-Korean fashion,
-editorial magazine,
-high-end clothing,
-extremely detailed,
-beautiful face,
-realistic fabric,
-natural pose,
-soft lighting,
-luxury fashion,
-masterpiece,
-best quality,
-8k,
-clean composition,
-centered subject,
-fashion photography style,
-professional styling,
-sharp focus,
-no text,
-no watermark
-"""
+        st.markdown(f"## ✨ {data['title']}")
 
-def build_image_prompt(data):
+        st.write(f"**상의** : {data['top']}")
 
-    return f"""
-{data["image_prompt"]}
+        st.write(f"**하의** : {data['bottom']}")
 
-{STYLE_SUFFIX}
-"""
+        st.write(f"**신발** : {data['shoes']}")
 
+        st.write(f"**액세서리** : {data['acc']}")
 
-# ---------------------------------------
-# GENERATE IMAGE AGAIN
-# ---------------------------------------
+        st.write(f"**추천 아이템** : {data['weather_item']}")
 
-def regenerate_current_styles():
+        st.write(f"**추천 색상** : {data['color']}")
 
-    for mood in MOODS:
+        st.markdown("---")
 
-        info = MOODS[mood]
+        st.subheader("📖 스타일 설명")
 
-        data = generate_style(
+        st.write(data["season_desc"])
 
-            mbti=mbti,
+        if mbti[0]=="I":
 
-            animal=animal,
+            st.write(
+                "내향적인 성향에 어울리는 차분하고 안정감 있는 스타일입니다."
+            )
 
-            weather=weather["weather"],
+        else:
 
-            temp=weather["temp"],
+            st.write(
+                "활동적이고 개성 있는 분위기를 강조하는 스타일입니다."
+            )
 
-            mood=info["name"],
-
-            background=info["background"],
-
-            seed=random.randint(1,999999)
-
+        st.write(
+            f"{animal}의 이미지를 은은하게 반영한 코디입니다."
         )
 
-        img = generate_image(
+        st.markdown("---")
 
-            build_image_prompt(data)
+        st.subheader("📚 스타일 유래")
 
-        )
+        st.write(data["origin"])
 
-        st.session_state.style_data[info["name"]] = data
+        st.subheader("📅 유행했던 시기")
 
-        st.session_state.images[info["name"]] = img
+        st.write(data["trend"])
 
+        st.subheader("🔥 유행한 이유")
 
-if regenerate:
+        st.write(data["reason"])
 
-    with st.spinner("새로운 스타일을 만드는 중입니다..."):
+    else:
 
-        regenerate_current_styles()
-
-    st.rerun()
-
-
-# ---------------------------------------
-# DOWNLOAD
-# ---------------------------------------
-
-for mood in st.session_state.images:
-
-    st.download_button(
-
-        label=f"💾 {mood} 이미지 저장",
-
-        data=st.session_state.images[mood],
-
-        file_name=f"{mood}.png",
-
-        mime="image/png"
-
-    )
-
-
-# ---------------------------------------
-# RANDOM TIP
-# ---------------------------------------
-
-tips=[
-
-"레이어드를 하면 훨씬 세련된 분위기가 납니다.",
-
-"액세서리를 하나만 추가해도 분위기가 달라집니다.",
-
-"신발 색상을 상의와 맞추면 안정감이 생깁니다.",
-
-"오버핏은 대부분의 체형에서 좋은 비율을 만들어줍니다.",
-
-"톤온톤 코디는 실패 확률이 매우 낮습니다."
-
-]
+        st.info("왼쪽에서 '✨ 스타일 추천' 버튼을 눌러주세요.")# ==========================================
+# myapp.py (5/5)
+# ==========================================
 
 st.markdown("---")
 
-st.info(
-"💡 오늘의 스타일 팁\n\n"
-+random.choice(tips)
-)
-# ==============================
-# app.py (5/5)
-# ==============================
+st.subheader("💡 오늘의 스타일 한마디")
 
-# ---------------------------------------
-# FOOTER
-# ---------------------------------------
+quotes = [
+
+"패션은 자신을 가장 먼저 소개하는 언어입니다.",
+
+"편안한 옷이 가장 멋진 옷입니다.",
+
+"유행은 지나가지만 스타일은 남습니다.",
+
+"오늘의 자신감은 오늘의 코디에서 시작됩니다.",
+
+"좋은 스타일은 작은 디테일에서 완성됩니다."
+
+]
+
+st.success(random.choice(quotes))
+
+st.markdown("---")
+
+st.subheader("⭐ 오늘의 스타일 점수")
+
+score = random.randint(85,100)
+
+st.progress(score/100)
+
+st.write(f"AI 추천 점수 : **{score}점**")
+
+st.markdown("---")
+
+st.subheader("🎨 추천 컬러")
+
+colors = {
+
+"😊 기쁨":[
+"아이보리",
+"스카이블루",
+"연노랑",
+"라이트베이지"
+],
+
+"😢 슬픔":[
+"네이비",
+"그레이",
+"블루",
+"차콜"
+],
+
+"😡 화남":[
+"블랙",
+"버건디",
+"다크레드",
+"다크그레이"
+],
+
+"😴 무기력":[
+"크림",
+"베이지",
+"카키",
+"브라운"
+]
+
+}
+
+for c in random.sample(colors[mood],2):
+
+    st.write("🎨",c)
+
+st.markdown("---")
+
+st.subheader("👔 이런 사람에게 추천")
+
+if mbti[0]=="I":
+
+    st.write("✔ 조용하고 편안한 분위기를 좋아하는 사람")
+
+else:
+
+    st.write("✔ 활동적이고 개성을 표현하고 싶은 사람")
+
+if temp>=28:
+
+    st.write("✔ 더운 날씨에 시원하게 입기 좋은 코디")
+
+elif temp>=18:
+
+    st.write("✔ 가볍게 외출하기 좋은 코디")
+
+elif temp>=8:
+
+    st.write("✔ 일교차가 큰 날씨에 추천")
+
+else:
+
+    st.write("✔ 추운 겨울에 따뜻하게 입기 좋은 코디")
 
 st.markdown("---")
 
 st.caption(
 """
-Made with ❤️ using
+Made with ❤️ using Streamlit
 
-• Streamlit
-
-• OpenAI GPT-4.1
-
-• GPT Image
-
-• OpenWeather API
+AI 없이 동작하는 스타일 추천기
 """
 )
-
-# ---------------------------------------
-# CACHE
-# ---------------------------------------
-
-@st.cache_data(ttl=600)
-def cached_weather(city):
-    return get_weather(city)
-
-# ---------------------------------------
-# ERROR
-# ---------------------------------------
-
-try:
-    pass
-
-except Exception as e:
-
-    st.error("오류가 발생했습니다.")
-
-    st.exception(e)
-
-# ---------------------------------------
-# EMPTY STATE
-# ---------------------------------------
-
-if not st.session_state.style_data:
-
-    st.markdown(
-    """
-    ## 👋 사용 방법
-
-    1. MBTI 선택
-    2. 좋아하는 동물 입력
-    3. 도시 입력
-    4. '✨ 스타일 생성' 클릭
-    5. 감정 탭(😊😢😡😴)을 넘기며 스타일 확인
-    6. '🔄 다시 생성'으로 새로운 스타일 추천
-    """
-    )
-
-# ---------------------------------------
-# REQUIREMENTS.TXT
-# ---------------------------------------
-"""
-streamlit>=1.45.0
-openai>=1.50.0
-requests>=2.32.0
-Pillow>=10.4.0
-"""
-
-# ---------------------------------------
-# .streamlit/secrets.toml
-# ---------------------------------------
-"""
-OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
-OPENWEATHER_API_KEY="YOUR_OPENWEATHER_API_KEY"
-"""
